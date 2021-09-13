@@ -4,6 +4,13 @@ module Sidekiq::Status
   class ClientMiddleware
     include Storage
 
+    # `Sidekiq::Job` was renamed to `Sidekiq::JobRecord` in Sidekiq v6.2.2, see:
+    #
+    # - https://github.com/mperham/sidekiq/commit/f1b24da9c225a5512120514d32a5348760e92f3a
+    # - https://github.com/mperham/sidekiq/issues/4955
+    # - https://github.com/mperham/sidekiq/discussions/4971
+    SIDEKIQ_JOB_CLASS = Gem::Version.new(Sidekiq::VERSION) >= Gem::Version.new('6.2.2') ? Sidekiq::JobRecord : Sidekiq::Job
+
     # Parameterized initialization, use it when adding middleware to client chain
     # chain.add Sidekiq::Status::ClientMiddleware, :expiration => 60 * 5
     # @param [Hash] opts middleware initialization options
@@ -45,7 +52,7 @@ module Sidekiq::Status
     end
 
     def display_args(msg, queue)
-      job = Sidekiq::Job.new(msg, queue)
+      job = SIDEKIQ_JOB_CLASS.new(msg, queue)
       return job.display_args.to_a.empty? ? nil : job.display_args.to_json
     rescue Exception => e
       # For Sidekiq ~> 2.7
